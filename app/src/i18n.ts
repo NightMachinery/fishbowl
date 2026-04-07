@@ -7,45 +7,60 @@ import queryString from "query-string"
 import { initReactI18next } from "react-i18next"
 
 const development = "development" === process.env.NODE_ENV
+const selfHost = process.env.REACT_APP_SELF_HOST === "1"
 const locizeApiKey = development
   ? process.env.REACT_APP_FISHBOWL_LOCIZE_API_KEY
   : undefined
-const saveMissing = Boolean(development && locizeApiKey)
-const inContext = "1" === queryString.parse(window.location.search).locize
+const saveMissing = Boolean(!selfHost && development && locizeApiKey)
+const inContext =
+  !selfHost && "1" === queryString.parse(window.location.search).locize
+const bundledResources = SupportedLanguages.reduce(
+  (resources, language) => {
+    resources[language] = EmptyResourceLanguage
+    return resources
+  },
+  {} as Record<typeof SupportedLanguages[number], typeof EmptyResourceLanguage>
+)
 
 if (inContext) {
   i18n.use(locizePlugin)
 }
 
-i18n
-  .use(Locize)
-  .use(LanguageDetector)
-  .use(initReactI18next)
-  .init({
-    debug: development,
+if (!selfHost) {
+  i18n.use(Locize)
+}
 
-    // @see https://www.i18next.com/overview/configuration-options#languages-namespaces-resources
-    fallbackLng: "en",
-    supportedLngs: SupportedLanguages as any,
-    partialBundledLanguages: true,
-    resources: saveMissing ? undefined : { en: EmptyResourceLanguage },
-    interpolation: {
-      escapeValue: false, // React already safe from XSS
-    },
+i18n.use(LanguageDetector).use(initReactI18next).init({
+  debug: development,
 
-    // @see https://www.i18next.com/overview/configuration-options#missing-keys
-    saveMissing,
-    updateMissing: saveMissing,
-    saveMissingTo: "all",
+  // @see https://www.i18next.com/overview/configuration-options#languages-namespaces-resources
+  fallbackLng: "en",
+  supportedLngs: SupportedLanguages as any,
+  partialBundledLanguages: true,
+  resources: selfHost
+    ? bundledResources
+    : saveMissing
+    ? undefined
+    : { en: EmptyResourceLanguage },
+  interpolation: {
+    escapeValue: false, // React already safe from XSS
+  },
 
-    // @see https://github.com/locize/i18next-locize-backend#backend-options
-    backend: {
-      projectId: "3ff96254-e310-4d55-8076-f0cc49f57a8f",
-      apiKey: locizeApiKey,
-      referenceLng: "en",
-      // @see https://docs.locize.com/guides-tips-and-tricks/going-production#versions-and-caching
-      version: development || inContext ? "latest" : "production",
-    },
-  })
+  // @see https://www.i18next.com/overview/configuration-options#missing-keys
+  saveMissing: !selfHost && saveMissing,
+  updateMissing: !selfHost && saveMissing,
+  saveMissingTo: "all",
+
+  // @see https://github.com/locize/i18next-locize-backend#backend-options
+  backend: selfHost
+    ? undefined
+    : {
+        projectId: "3ff96254-e310-4d55-8076-f0cc49f57a8f",
+        apiKey: locizeApiKey,
+        referenceLng: "en",
+        // @see https://docs.locize.com/guides-tips-and-tricks/going-production#versions-and-caching
+        version: development || inContext ? "latest" : "production",
+      },
+})
 
 export default i18n

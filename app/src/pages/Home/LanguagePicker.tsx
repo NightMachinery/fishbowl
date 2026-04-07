@@ -30,6 +30,7 @@ const useStyles = makeStyles((theme) => ({
 export const LanguagePicker = () => {
   const classes = useStyles()
   const { t, i18n } = useTranslation()
+  const selfHost = process.env.REACT_APP_SELF_HOST === "1"
 
   return (
     <Box textAlign="center">
@@ -57,15 +58,17 @@ export const LanguagePicker = () => {
           </IconButton>
         </li>
       </ul>
-      <Typography color="textSecondary" variant="caption">
-        <Trans t={t} i18nKey="languagesPoweredBy">
-          {"Powered by our friends at "}
-          <Link href="https://locize.com" target="_blank">
-            {{ serviceName: "locize" }}
-          </Link>
-          .
-        </Trans>
-      </Typography>
+      {!selfHost && (
+        <Typography color="textSecondary" variant="caption">
+          <Trans t={t} i18nKey="languagesPoweredBy">
+            {"Powered by our friends at "}
+            <Link href="https://locize.com" target="_blank">
+              {{ serviceName: "locize" }}
+            </Link>
+            .
+          </Trans>
+        </Typography>
+      )}
     </Box>
   )
 }

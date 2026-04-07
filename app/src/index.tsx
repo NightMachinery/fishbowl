@@ -16,7 +16,9 @@ import ReactDOM from "react-dom"
 import * as serviceWorker from "serviceWorker"
 import "./i18n"
 
-if (process.env.NODE_ENV !== "development") {
+const selfHost = process.env.REACT_APP_SELF_HOST === "1"
+
+if (!selfHost && process.env.NODE_ENV !== "development") {
   Sentry.init({
     dsn:
       "https://d142f9cb081e4dbe9f14316996496044@o392843.ingest.sentry.io/5241100",
