@@ -74,7 +74,7 @@ find_postgres_bin_dir() {
 
 readonly REPO_ROOT="$(cd -- "${0:A:h}" && pwd)"
 readonly COMMAND="${1:-}"
-readonly DEFAULT_SITE_ADDRESS="m1.pinky.lilf.ir"
+readonly DEFAULT_SITE_ADDRESS="monikers.pinky.lilf.ir"
 readonly SITE_ADDRESS_INPUT="${2:-${FISHBOWL_SITE_ADDRESS:-$DEFAULT_SITE_ADDRESS}}"
 readonly SITE_ADDRESS="$(normalize_site_address "$SITE_ADDRESS_INPUT")"
 readonly SITE_ISSUER="$SITE_ADDRESS"
