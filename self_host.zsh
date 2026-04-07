@@ -90,7 +90,8 @@ readonly CADDYFILE="$HOME/Caddyfile"
 readonly BUILD_DIR="$REPO_ROOT/app/build"
 readonly ACTIONS_BUILD_DIR="$REPO_ROOT/actions-server/build"
 readonly NODE_VERSION="${FISHBOWL_NODE_VERSION:-$(if [[ -d "$HOME/.nvm/versions/node/v16.20.2" ]]; then print -r -- 16.20.2; else cat "$REPO_ROOT/.nvmrc"; fi)}"
-readonly -a YARN_INSTALL_ARGS=(--frozen-lockfile --network-timeout 600000 --network-concurrency 1 --prefer-offline --link-duplicates)
+readonly -a PNPM_FETCH_ARGS=(--prefer-offline --reporter append-only)
+readonly -a PNPM_INSTALL_ARGS=(--frozen-lockfile --prefer-offline --offline --shamefully-hoist --reporter append-only)
 
 readonly PG_PORT="${FISHBOWL_PG_PORT:-15432}"
 readonly ACTIONS_PORT="${FISHBOWL_ACTIONS_PORT:-13001}"
@@ -146,11 +147,11 @@ load_proxy() {
 		fi
 	fi
 
-	export npm_config_fetch_retries=5 npm_config_fetch_retry_mintimeout=2000 npm_config_fetch_retry_maxtimeout=120000 npm_config_fetch_timeout=60000
+	export npm_config_fetch_retries=5 npm_config_fetch_retry_mintimeout=2000 npm_config_fetch_retry_maxtimeout=120000 npm_config_fetch_timeout=600000 npm_config_network_concurrency=1
 }
 
 clear_proxy() {
-	unset npm_config_fetch_retries npm_config_fetch_retry_mintimeout npm_config_fetch_retry_maxtimeout npm_config_fetch_timeout || true
+	unset npm_config_fetch_retries npm_config_fetch_retry_mintimeout npm_config_fetch_retry_maxtimeout npm_config_fetch_timeout npm_config_network_concurrency || true
 }
 
 bootstrap_nvm() {
@@ -465,19 +466,46 @@ install_node_dependencies() {
 	load_proxy
 	load_node
 
-	log "Installing app dependencies"
-	(
-		cd "$REPO_ROOT/app"
-		retry_command 6 yarn install "${YARN_INSTALL_ARGS[@]}"
-	)
-
-	log "Installing actions-server dependencies"
-	(
-		cd "$REPO_ROOT/actions-server"
-		retry_command 6 yarn install "${YARN_INSTALL_ARGS[@]}"
-	)
+	install_project_dependencies "$REPO_ROOT/app" "app"
+	install_project_dependencies "$REPO_ROOT/actions-server" "actions-server"
 
 	clear_proxy
+}
+
+ensure_pnpm_lockfile() {
+	local project_dir="$1"
+	local project_name="$2"
+	local yarn_lock="$project_dir/yarn.lock"
+	local pnpm_lock="$project_dir/pnpm-lock.yaml"
+
+	[[ -f "$yarn_lock" ]] || return
+
+	if [[ ! -f "$pnpm_lock" || "$yarn_lock" -nt "$pnpm_lock" ]]; then
+		log "Refreshing pnpm lockfile for $project_name"
+		(
+			cd "$project_dir"
+			retry_command 6 pnpm import
+		)
+	fi
+}
+
+install_project_dependencies() {
+	local project_dir="$1"
+	local project_name="$2"
+
+	ensure_pnpm_lockfile "$project_dir" "$project_name"
+
+	log "Prefetching $project_name dependencies with pnpm"
+	(
+		cd "$project_dir"
+		retry_command 6 pnpm fetch "${PNPM_FETCH_ARGS[@]}"
+	)
+
+	log "Installing $project_name dependencies with pnpm"
+	(
+		cd "$project_dir"
+		retry_command 6 pnpm install "${PNPM_INSTALL_ARGS[@]}"
+	)
 }
 
 build_artifacts() {
@@ -487,7 +515,7 @@ build_artifacts() {
 	log "Building actions server"
 	(
 		cd "$REPO_ROOT/actions-server"
-		yarn build
+		pnpm run build
 	)
 
 	log "Building frontend"
@@ -497,7 +525,7 @@ build_artifacts() {
 		REACT_APP_SELF_HOST=1 \
 		REACT_APP_FISHBOWL_GRAPHQL_ENDPOINT= \
 		REACT_APP_FISHBOWL_WS_GRAPHQL_ENDPOINT= \
-		yarn build
+		pnpm run build
 	)
 }
 
@@ -658,7 +686,6 @@ ensure_common_commands() {
 	require_command caddy
 	require_command curl
 	require_command python3
-	require_command yarn
 	require_command pg_isready
 	require_command createdb
 	require_command psql
@@ -666,7 +693,7 @@ ensure_common_commands() {
 
 do_setup() {
 	ensure_common_commands
-	require_command yarn
+	require_command pnpm
 
 	ensure_dirs
 	install_node_dependencies
@@ -679,7 +706,7 @@ do_setup() {
 
 do_redeploy() {
 	ensure_common_commands
-	require_command yarn
+	require_command pnpm
 
 	ensure_dirs
 	install_node_dependencies
