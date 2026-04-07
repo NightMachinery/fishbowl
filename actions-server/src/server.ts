@@ -5,7 +5,9 @@ if (process.env.NODE_ENV !== "production") {
   require("dotenv").config()
 }
 
-if (process.env.NODE_ENV !== "development") {
+const selfHost = process.env.SELF_HOST === "1"
+
+if (!selfHost && process.env.NODE_ENV !== "development") {
   Sentry.init({
     dsn:
       "https://593a557ed4834276803af5fc8a4432b5@o392843.ingest.sentry.io/5241108",

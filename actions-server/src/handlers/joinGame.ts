@@ -2,6 +2,11 @@ import { Request, Response } from "express"
 import jwt from "jsonwebtoken"
 import { graphQLClient } from "../graphQLClient"
 
+function tokenIssuer() {
+  const issuer = process.env.JWT_ISSUER || "https://fishbowl-game.com/"
+  return issuer.endsWith("/") ? issuer : `${issuer}/`
+}
+
 // Request Handler
 const handler = async (req: Request, res: Response) => {
   if (!process.env.HASURA_GRAPHQL_JWT_SECRET) {
@@ -58,7 +63,7 @@ const handler = async (req: Request, res: Response) => {
     const tokenContents = {
       sub: playerId.toString(),
       iat: Date.now() / 1000,
-      iss: "https://fishbowl-game.com/",
+      iss: tokenIssuer(),
       "https://hasura.io/jwt/claims": {
         "x-hasura-allowed-roles": ["player", "anonymous"],
         "x-hasura-user-id": playerId.toString(),
