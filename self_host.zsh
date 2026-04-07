@@ -114,13 +114,43 @@ readonly CREATEDB_BIN="$(command -v createdb)"
 readonly PSQL_BIN="$(command -v psql)"
 readonly DATABASE_URL="postgresql://${DB_USER}@127.0.0.1:${PG_PORT}/${DB_NAME}"
 
+copy_env_if_unset() {
+	local target_name="$1"
+	local source_name="$2"
+	local source_value="${(P)source_name:-}"
+
+	if [[ -z "${(P)target_name:-}" && -n "$source_value" ]]; then
+		export "$target_name=$source_value"
+	fi
+}
+
 load_proxy() {
-	export ALL_PROXY=http://127.0.0.1:2097 all_proxy=http://127.0.0.1:2097 http_proxy=http://127.0.0.1:2097 https_proxy=http://127.0.0.1:2097 HTTP_PROXY=http://127.0.0.1:2097 HTTPS_PROXY=http://127.0.0.1:2097 npm_config_proxy=http://127.0.0.1:2097 npm_config_https_proxy=http://127.0.0.1:2097
+	copy_env_if_unset http_proxy HTTP_PROXY
+	copy_env_if_unset HTTP_PROXY http_proxy
+	copy_env_if_unset https_proxy HTTPS_PROXY
+	copy_env_if_unset HTTPS_PROXY https_proxy
+	copy_env_if_unset all_proxy ALL_PROXY
+	copy_env_if_unset ALL_PROXY all_proxy
+
+	if [[ -z "${npm_config_proxy:-}" ]]; then
+		local proxy_value="${https_proxy:-${HTTPS_PROXY:-${http_proxy:-${HTTP_PROXY:-}}}}"
+		if [[ -n "$proxy_value" ]]; then
+			export npm_config_proxy="$proxy_value"
+		fi
+	fi
+
+	if [[ -z "${npm_config_https_proxy:-}" ]]; then
+		local https_proxy_value="${https_proxy:-${HTTPS_PROXY:-${http_proxy:-${HTTP_PROXY:-}}}}"
+		if [[ -n "$https_proxy_value" ]]; then
+			export npm_config_https_proxy="$https_proxy_value"
+		fi
+	fi
+
 	export npm_config_fetch_retries=5 npm_config_fetch_retry_mintimeout=2000 npm_config_fetch_retry_maxtimeout=120000 npm_config_fetch_timeout=60000
 }
 
 clear_proxy() {
-	unset ALL_PROXY all_proxy http_proxy https_proxy HTTP_PROXY HTTPS_PROXY npm_config_proxy npm_config_https_proxy npm_config_fetch_retries npm_config_fetch_retry_mintimeout npm_config_fetch_retry_maxtimeout npm_config_fetch_timeout || true
+	unset npm_config_fetch_retries npm_config_fetch_retry_mintimeout npm_config_fetch_retry_maxtimeout npm_config_fetch_timeout || true
 }
 
 bootstrap_nvm() {

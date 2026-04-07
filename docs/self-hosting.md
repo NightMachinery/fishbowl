@@ -65,7 +65,7 @@ Or with a custom address:
 
 `setup` will:
 
-1. export the requested proxy variables for downloads
+1. reuse your existing proxy environment variables for downloads, if set
 2. load Node with `nvm-load` / `nvm use`
 3. install JS dependencies
 4. download/extract the official Hasura `v1.3.3.cli-migrations-v2` image filesystem locally without using Docker
