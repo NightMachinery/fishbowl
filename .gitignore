@@ -13,6 +13,7 @@ upload.graphql
 # production
 /build
 */build
+.self-hosting/
 
 # misc
 .DS_Store
