@@ -12,9 +12,20 @@ import {
 } from "contexts/CurrentAuth"
 import * as React from "react"
 
+function defaultGraphQLEndpoint() {
+  return `${window.location.origin}/v1/graphql`
+}
+
+function defaultWsGraphQLEndpoint() {
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws"
+  return `${protocol}://${window.location.host}/v1/graphql`
+}
+
 const createApolloClient = (jwtToken: CurrentAuthContextType["jwtToken"]) => {
   const httpLink = new HttpLink({
-    uri: process.env.REACT_APP_FISHBOWL_GRAPHQL_ENDPOINT,
+    uri:
+      process.env.REACT_APP_FISHBOWL_GRAPHQL_ENDPOINT ||
+      defaultGraphQLEndpoint(),
     credentials: "include",
     headers: jwtToken
       ? {
@@ -25,7 +36,9 @@ const createApolloClient = (jwtToken: CurrentAuthContextType["jwtToken"]) => {
   })
 
   const wsLink = new WebSocketLink({
-    uri: process.env.REACT_APP_FISHBOWL_WS_GRAPHQL_ENDPOINT || "",
+    uri:
+      process.env.REACT_APP_FISHBOWL_WS_GRAPHQL_ENDPOINT ||
+      defaultWsGraphQLEndpoint(),
     options: {
       lazy: true,
       reconnect: true,

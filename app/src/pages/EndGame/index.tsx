@@ -24,6 +24,8 @@ function EndGame() {
   const currentPlayer = React.useContext(CurrentPlayerContext)
   const titleClasses = useTitleStyle()
   const [redirectHome, setRedirectHome] = React.useState(false)
+  const shareUrl = window.location.origin
+  const shareDisplayUrl = window.location.host
 
   const turnsByPlayer = new Map()
   currentGame.turns.forEach((turn) => {
@@ -64,7 +66,7 @@ function EndGame() {
   const shareContent = t(
     "end.shareContent",
     "Just had a great time playing {{ url }} online, you should check it out!",
-    { url: "fishbowl-game.com" }
+    { url: shareDisplayUrl }
   )
 
   return (
@@ -141,18 +143,12 @@ function EndGame() {
 
           <Grid container justify="center" spacing={2}>
             <Grid item>
-              <TwitterShareButton
-                url={"fishbowl-game.com"}
-                title={shareContent}
-              >
+              <TwitterShareButton url={shareUrl} title={shareContent}>
                 <TwitterIcon size={50} round />
               </TwitterShareButton>
             </Grid>
             <Grid item>
-              <FacebookShareButton
-                url={"fishbowl-game.com"}
-                title={shareContent}
-              >
+              <FacebookShareButton url={shareUrl} title={shareContent}>
                 <FacebookIcon size={50} round />
               </FacebookShareButton>
             </Grid>
