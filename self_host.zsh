@@ -101,6 +101,7 @@ readonly DB_USER="${FISHBOWL_DB_USER:-$(id -un)}"
 readonly ADMIN_SECRET="${FISHBOWL_HASURA_ADMIN_SECRET:-myadminsecretkey}"
 readonly JWT_KEY="${FISHBOWL_JWT_KEY:-FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE}"
 readonly HASURA_IMAGE_TAG="${FISHBOWL_HASURA_IMAGE_TAG:-v1.3.3.cli-migrations-v2}"
+readonly LOCAL_NO_PROXY="${FISHBOWL_NO_PROXY:-127.0.0.1,localhost}"
 
 readonly SESSION_POSTGRES="fishbowl-postgres"
 readonly SESSION_ACTIONS="fishbowl-actions-server"
@@ -389,8 +390,15 @@ run_hasura_cli() {
 	clear_proxy
 	ensure_hasura_rootfs
 	env \
+		-u http_proxy \
+		-u HTTP_PROXY \
+		-u https_proxy \
+		-u HTTPS_PROXY \
+		-u all_proxy \
+		-u ALL_PROXY \
+		NO_PROXY="$LOCAL_NO_PROXY" \
+		no_proxy="$LOCAL_NO_PROXY" \
 		PATH="$(hasura_path_prefix)" \
-		LD_LIBRARY_PATH="$(hasura_ld_library_path)" \
 		"$(hasura_cli_bin)" \
 		"$@"
 }
@@ -557,7 +565,7 @@ wait_for_postgres() {
 wait_for_hasura() {
 	local attempt
 	for attempt in {1..60}; do
-		if curl -fsS "http://127.0.0.1:$HASURA_PORT/healthz" &> /dev/null; then
+		if curl --noproxy '*' -fsS "http://127.0.0.1:$HASURA_PORT/healthz" &> /dev/null; then
 			return
 		fi
 		sleep 1
@@ -594,14 +602,17 @@ start_postgres() {
 start_actions_server() {
 	local log_file="$LOG_DIR/actions-server.log"
 	local command="
-		export NVM_DIR=${(q)$HOME/.nvm}
+		unset http_proxy HTTP_PROXY https_proxy HTTPS_PROXY all_proxy ALL_PROXY
+		export no_proxy=${(q)LOCAL_NO_PROXY}
+		export NO_PROXY=${(q)LOCAL_NO_PROXY}
+		export NVM_DIR=${(q)HOME}/.nvm
 		nvm-load() {
-			[[ -s ${(q)$HOME/.nvm_load} ]] && source ${(q)$HOME/.nvm_load}
+			[[ -s ${(q)HOME}/.nvm_load ]] && source ${(q)HOME}/.nvm_load
 			[[ -s \$NVM_DIR/nvm.sh ]] && source \$NVM_DIR/nvm.sh
 		}
 		nvm-load
 		nvm use ${(q)NODE_VERSION}
-		cd ${(q)$REPO_ROOT/actions-server}
+		cd ${(q)REPO_ROOT}/actions-server
 		export NODE_ENV=production
 		export SELF_HOST=1
 		export PORT=${(q)ACTIONS_PORT}
@@ -619,12 +630,13 @@ start_hasura() {
 	local graphql_engine_bin="$(find_hasura_binary graphql-engine)"
 	local log_file="$LOG_DIR/hasura.log"
 	local hasura_path="$(hasura_path_prefix)"
-	local hasura_ld_library_path="$(hasura_ld_library_path)"
 	local jwt_secret_json="{\"type\":\"HS256\",\"key\":\"$JWT_KEY\"}"
 	local command="
-		cd ${(q)$REPO_ROOT}
+		cd ${(q)REPO_ROOT}
+		unset http_proxy HTTP_PROXY https_proxy HTTPS_PROXY all_proxy ALL_PROXY
+		export no_proxy=${(q)LOCAL_NO_PROXY}
+		export NO_PROXY=${(q)LOCAL_NO_PROXY}
 		export PATH=${(q)hasura_path}
-		export LD_LIBRARY_PATH=${(q)hasura_ld_library_path}
 		export HASURA_GRAPHQL_ADMIN_SECRET=${(q)ADMIN_SECRET}
 		export HASURA_GRAPHQL_JWT_SECRET=${(q)jwt_secret_json}
 		export HASURA_GRAPHQL_ENABLE_CONSOLE=false
